@@ -23,6 +23,7 @@ services:
     container_name: pod1
     depends_on:
       - db
+      - worker
     networks:
       - backend
     volumes:
