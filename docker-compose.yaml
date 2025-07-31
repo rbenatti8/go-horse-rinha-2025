@@ -1,0 +1,84 @@
+services:
+  haproxy:
+    image: haproxy:latest
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "9999:80"
+    depends_on:
+      - pod1
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "50MB"
+  pod1: &pod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    pull_policy: always
+    container_name: pod1
+    depends_on:
+      - db
+    networks:
+      - backend
+    volumes:
+      - uds-socket:/socket
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "20MB"
+  pod2:
+    <<: *pod
+    container_name: pod2
+  pod3:
+    <<: *pod
+    container_name: pod3
+  pod4:
+    <<: *pod
+    container_name: pod4
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: db
+    pull_policy: always
+    container_name: db
+    networks:
+      - backend
+    volumes:
+      - uds-socket:/socket
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "20MB"
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    pull_policy: always
+    container_name: worker
+    depends_on:
+      - db
+    networks:
+      - backend
+    volumes:
+      - uds-socket:/socket
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "20MB"
+networks:
+  backend:
+    driver: bridge
+  payment-processor:
+    external: true
+volumes:
+  uds-socket:
