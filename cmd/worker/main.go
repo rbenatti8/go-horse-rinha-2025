@@ -16,8 +16,8 @@ func main() {
 	socketPath := "/socket/worker.sock"
 	_ = os.Remove(socketPath)
 
-	addr := net.UnixAddr{Name: socketPath, Net: "unix"}
-	listener, err := net.ListenUnix("unix", &addr)
+	dbAddr := net.UnixAddr{Name: socketPath, Net: "unix"}
+	listener, err := net.ListenUnix("unix", &dbAddr)
 	if err != nil {
 		log.Fatalln("Failed to listen:", err)
 	}
@@ -32,31 +32,33 @@ func main() {
 			continue
 		}
 
-		go func(c *net.UnixConn) {
-			defer func(c *net.UnixConn) {
-				_ = c.Close()
-			}(c)
+		go handleConnection(conn)
+	}
+}
 
-			buf := make([]byte, 83)
-			n, err := c.Read(buf)
-			if err != nil {
-				log.Println("Failed to read:", err)
-				return
-			}
+func handleConnection(conn *net.UnixConn) {
+	defer func(c *net.UnixConn) {
+		_ = c.Close()
+	}(conn)
 
-			if n > 0 {
-				cid, _ := jsonparser.GetString(buf, "correlationId")
-				amount, _ := jsonparser.GetFloat(buf, "amount")
+	buf := make([]byte, 83)
+	n, err := conn.Read(buf)
+	if err != nil {
+		log.Println("Failed to read:", err)
+		return
+	}
 
-				p := messages.Payment{
-					Amount:      amount,
-					CID:         cid,
-					RequestedAt: time.Now().UTC().Format(time.RFC3339Nano),
-				}
+	if n > 0 {
+		cid, _ := jsonparser.GetString(buf, "correlationId")
+		amount, _ := jsonparser.GetFloat(buf, "amount")
 
-				sendTODB(p)
-			}
-		}(conn)
+		p := messages.Payment{
+			Amount:      amount,
+			CID:         cid,
+			RequestedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		}
+
+		sendTODB(p)
 	}
 }
 

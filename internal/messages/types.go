@@ -24,5 +24,5 @@ type SummarizedPayments struct {
 
 type SummarizedProcessor struct {
 	TotalAmount   float64 `msgpack:"totalAmount" json:"totalAmount"`
-	TotalRequests int64   `msgpack:"totalRequests" json:"totalRequests"`
+	TotalRequests int64   `msgpack:"totalRequests"`
 }

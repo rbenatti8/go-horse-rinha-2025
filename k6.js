@@ -4,7 +4,7 @@ import { check, sleep } from 'k6';
 
 export let options = {
     stages: [
-        { duration: '30s', target: 550 }, // ramp-up to 260 VUs over 30 seconds
+        { duration: '60s', start:1 , target: 550 }, // ramp-up to 260 VUs over 30 seconds
     ],
 };
 

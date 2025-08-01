@@ -3,16 +3,20 @@ services:
     image: haproxy:latest
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - uds-socket:/socket:rw  # <-- ADICIONADO
     ports:
       - "9999:80"
     depends_on:
       - pod1
+      - pod2
+      - pod3
+      - pod4
     networks:
       - backend
     deploy:
       resources:
         limits:
-          cpus: "0.2"
+          cpus: "0.4"
           memory: "50MB"
   pod1: &pod
     build:
@@ -21,27 +25,35 @@ services:
       target: api
     pull_policy: always
     container_name: pod1
+    environment:
+      - SOCKET_PATH=/socket/pod1.sock  # <-- ADICIONADO
     depends_on:
       - db
       - worker
     networks:
       - backend
     volumes:
-      - uds-socket:/socket
+      - uds-socket:/socket:rw  # <-- ADICIONADO
     deploy:
       resources:
         limits:
           cpus: "0.1"
-          memory: "20MB"
+          memory: "25MB"
   pod2:
     <<: *pod
     container_name: pod2
+    environment:
+      - SOCKET_PATH=/socket/pod2.sock
   pod3:
     <<: *pod
     container_name: pod3
+    environment:
+      - SOCKET_PATH=/socket/pod3.sock
   pod4:
     <<: *pod
     container_name: pod4
+    environment:
+      - SOCKET_PATH=/socket/pod4.sock
   db:
     build:
       context: .
@@ -57,7 +69,7 @@ services:
       resources:
         limits:
           cpus: "0.1"
-          memory: "20MB"
+          memory: "100MB"
   worker:
     build:
       context: .
@@ -74,8 +86,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.1"
-          memory: "20MB"
+          cpus: "0.6"
+          memory: "100MB"
 networks:
   backend:
     driver: bridge

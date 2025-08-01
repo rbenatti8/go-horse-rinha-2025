@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"net/url"
-	"time"
 )
 
 var (
@@ -33,20 +32,21 @@ var (
 
 type Server struct {
 	gnet.BuiltinEventEngine
-	port int
+	socketPath string
 }
 
-func NewServer(port int) *Server {
+func NewServer(sockerPath string) (*Server, error) {
 	return &Server{
-		port: port,
-	}
+		socketPath: sockerPath,
+	}, nil
 }
 
 func (s *Server) Start() error {
-	err := gnet.Run(s, fmt.Sprintf("tcp://:%d", s.port),
+	err := gnet.Run(
+		s,
+		fmt.Sprintf("unix:///%s", s.socketPath), // Caminho para o socket Unix
 		gnet.WithMulticore(true),
-		gnet.WithReusePort(true),
-		gnet.WithTCPNoDelay(gnet.TCPNoDelay),
+		gnet.WithReusePort(true), // Pode manter ativado
 		gnet.WithNumEventLoop(4),
 		gnet.WithSocketRecvBuffer(1<<20), // 1MB
 		gnet.WithSocketSendBuffer(1<<20), // 1MB
@@ -58,7 +58,9 @@ func (s *Server) OnBoot(_ gnet.Engine) (action gnet.Action) {
 	return
 }
 
-func (s *Server) OnShutdown(_ gnet.Engine) {}
+func (s *Server) OnShutdown(_ gnet.Engine) {
+
+}
 
 func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	buf, err := c.Next(-1)
@@ -78,7 +80,7 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 
 	switch string(path) {
 	case "/payments":
-		handlePayments(c, buf)
+		s.handlePayments(c, buf)
 		return gnet.None
 	case "/payments-summary":
 		handlePaymentsSummary(c, query)
@@ -90,7 +92,7 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	return
 }
 
-func handlePayments(c gnet.Conn, buf []byte) {
+func (s *Server) handlePayments(c gnet.Conn, buf []byte) {
 	_, _ = c.Write(statusAccepted)
 	idx := bytes.Index(buf, bFour)
 	if idx == -1 {
@@ -101,7 +103,7 @@ func handlePayments(c gnet.Conn, buf []byte) {
 	msg := make([]byte, len(buf[idx+4:]))
 	copy(msg, buf[idx+4:])
 
-	sendTOWorker(msg)
+	s.sendTOWorker(msg)
 	return
 }
 
@@ -171,8 +173,7 @@ func handlePaymentsSummary(c gnet.Conn, query []byte) {
 	c.Write(b)
 }
 
-func sendTOWorker(msg []byte) {
-	t := time.Now()
+func (s *Server) sendTOWorker(msg []byte) {
 	conn, err := net.DialUnix("unix", nil, &workerAddr)
 	if err != nil {
 		log.Println("Error connecting to socket:", err)
@@ -184,6 +185,4 @@ func sendTOWorker(msg []byte) {
 	}(conn)
 
 	_, _ = conn.Write(msg)
-
-	log.Printf("Time taken: %s", time.Since(t))
 }

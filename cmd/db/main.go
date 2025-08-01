@@ -61,8 +61,6 @@ func main() {
 					log.Println("Failed to decode msgpack:", err)
 					return
 				}
-
-				fmt.Println("Received payment:", payment)
 			}
 
 			if msgType == messages.TypeSummarizePayments {
