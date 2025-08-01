@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/buger/jsonparser"
-	"github.com/rbenatti8/go-horse-rinha-2025/internal/types"
+	"github.com/rbenatti8/go-horse-rinha-2025/internal/messages"
 	"github.com/vmihailenco/msgpack/v5"
 	"log"
 	"net"
@@ -46,13 +46,9 @@ func main() {
 
 			if n > 0 {
 				cid, _ := jsonparser.GetString(buf, "correlationId")
-				amount, err := jsonparser.GetFloat(buf, "amount")
-				if err != nil {
-					log.Println("Failed to parse amount:", err)
-					return
-				}
+				amount, _ := jsonparser.GetFloat(buf, "amount")
 
-				p := types.Payment{
+				p := messages.Payment{
 					Amount:      amount,
 					CID:         cid,
 					RequestedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -66,7 +62,7 @@ func main() {
 
 var addr = net.UnixAddr{Name: "/socket/db.sock", Net: "unix"}
 
-func sendTODB(p types.Payment) {
+func sendTODB(p messages.Payment) {
 	conn, err := net.DialUnix("unix", nil, &addr)
 	if err != nil {
 		log.Println("Error connecting to socket:", err)

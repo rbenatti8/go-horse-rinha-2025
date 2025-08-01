@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/rbenatti8/go-horse-rinha-2025/internal/messages"
-	"github.com/rbenatti8/go-horse-rinha-2025/internal/types"
 	"github.com/vmihailenco/msgpack/v5"
 	"log"
 	"net"
@@ -45,28 +45,68 @@ func main() {
 				return
 			}
 
-			version := header[0]
+			//version := header[0]
 			msgType := header[1]
 			payloadSize := binary.BigEndian.Uint32(header[2:])
 
-			if version != 1 || msgType != messages.TypePushPayment {
-				log.Println("Unsupported version/type")
-				return
+			if msgType == messages.TypePushPayment {
+				payload := make([]byte, payloadSize)
+				if _, err = conn.Read(payload); err != nil {
+					log.Println("Failed to read payload:", err)
+					return
+				}
+
+				var payment messages.Payment
+				if err = msgpack.Unmarshal(payload, &payment); err != nil {
+					log.Println("Failed to decode msgpack:", err)
+					return
+				}
+
+				fmt.Println("Received payment:", payment)
 			}
 
-			payload := make([]byte, payloadSize)
-			if _, err = conn.Read(payload); err != nil {
-				log.Println("Failed to read payload:", err)
-				return
+			if msgType == messages.TypeSummarizePayments {
+				payload := make([]byte, payloadSize)
+				if _, err = conn.Read(payload); err != nil {
+					log.Println("Failed to read payload:", err)
+					return
+				}
+
+				var summary messages.SummarizePayments
+				if err = msgpack.Unmarshal(payload, &summary); err != nil {
+					log.Println("Failed to decode msgpack:", err)
+					return
+				}
+
+				fmt.Println("Received payment summary request:", summary)
+
+				m := messages.SummarizedPayments{
+					Default: messages.SummarizedProcessor{
+						TotalAmount:   0,
+						TotalRequests: 0,
+					},
+					Fallback: messages.SummarizedProcessor{
+						TotalAmount:   0,
+						TotalRequests: 0,
+					},
+				}
+
+				summarizedPayments, err := msgpack.Marshal(m)
+				if err != nil {
+					log.Println("Failed to encode msgpack:", err)
+					return
+				}
+
+				var buf bytes.Buffer
+
+				buf.WriteByte(1)                                                          // version
+				buf.WriteByte(messages.TypeSummarizedPayments)                            // type = insert
+				_ = binary.Write(&buf, binary.BigEndian, uint32(len(summarizedPayments))) // payload size
+				buf.Write(summarizedPayments)
+
+				_, _ = conn.Write(buf.Bytes())
 			}
 
-			var payment types.Payment
-			if err = msgpack.Unmarshal(payload, &payment); err != nil {
-				log.Println("Failed to decode msgpack:", err)
-				return
-			}
-
-			fmt.Println("Received payment:", payment)
 		}(conn)
 	}
 }

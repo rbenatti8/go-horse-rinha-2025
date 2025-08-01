@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/buger/jsonparser v1.1.1
+	github.com/goccy/go-json v0.10.5
 	github.com/panjf2000/gnet/v2 v2.9.2
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 )
